@@ -4,6 +4,7 @@ import cors from 'cors';
 import { config } from './config';
 import authRoutes from './routes/auth';
 import emotionCookiesRoutes from './routes/emotionCookies';
+import syncRoutes from './routes/sync';
 import aiRoutes from './routes/ai';
 
 const app = express();
@@ -28,6 +29,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/emotion-cookies', emotionCookiesRoutes);
+app.use('/api/sync', syncRoutes);
 app.use('/api', aiRoutes);
 
 // 启动服务器：监听 0.0.0.0 以便真机调试时手机能访问

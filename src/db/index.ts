@@ -50,6 +50,14 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_cookie_goals_user
     ON cookie_goals(user_id);
+
+  -- 云端同步快照：每个用户一份完整 JSON，便于上传/恢复（不占手机内存）
+  CREATE TABLE IF NOT EXISTS sync_snapshot (
+    user_id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
 `);
 
 export interface UserRow {
@@ -123,6 +131,24 @@ export function upsertEmotionDay(userId: number, date: string, dataJson: string)
   return db
     .prepare('SELECT * FROM emotion_cookies WHERE id = ?')
     .get(result.lastInsertRowid) as EmotionDayRow;
+}
+
+// ========== 云端同步快照（所有用户可用，自动上传/恢复） ==========
+
+export function getSyncSnapshot(userId: number): { data: string; updated_at: string } | undefined {
+  const row = db
+    .prepare('SELECT data, updated_at FROM sync_snapshot WHERE user_id = ?')
+    .get(userId) as { data: string; updated_at: string } | undefined;
+  return row;
+}
+
+export function setSyncSnapshot(userId: number, dataJson: string): string {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO sync_snapshot (user_id, data, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+  ).run(userId, dataJson, now);
+  return now;
 }
 
 /** 查询某用户最近 N 天（或半年内）的情绪饼干 */
